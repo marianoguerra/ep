@@ -18,10 +18,32 @@ ep_test_1(Config) ->
     {ok, [ConsyInfo]} = file:consult(ConsyPath),
     ExPrintableInfo = #{info =>
                         #{funs=>#{to_string=>{my_to_string,1}},line=>3},
+                        funs => #{to_string =>
+                                  {function,6,my_to_string,1,
+                                   [{clause,6,
+                                     [{var,6,'V'}],
+                                     [],
+                                     [{call,6,
+                                       {remote,6,{atom,6,io_lib},{atom,6,format}},
+                                       [{string,6,"~p"},
+                                        {cons,6,{var,6,'V'},{nil,6}}]}]}]}},
                         module=>ep_test_1,name=>printable},
     ExConsyInfo = #{info=>
-                    #{funs=>#{first=>{first,1},rest=>{consy_rest,1}},line=>4}
-                    ,module=>ep_test_1,name=>consy},
+                    #{funs=>#{first=>{first,1},rest=>{consy_rest,1}},line=>4},
+                    funs =>
+                    #{first =>
+                      {function,9,first,1,
+                       [{clause,9,
+                         [{cons,9,{var,9,'H'},{var,9,'_'}}],
+                         [],
+                         [{var,9,'H'}]}]},
+                      rest =>
+                      {function,10,consy_rest,1,
+                       [{clause,10,
+                         [{cons,10,{var,10,'_'},{var,10,'T'}}],
+                         [],
+                         [{var,10,'T'}]}]}},
+                    module=>ep_test_1,name=>consy},
     ExPrintableInfo = PrintableInfo,
     ExConsyInfo = ConsyInfo.
 
