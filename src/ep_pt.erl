@@ -66,8 +66,8 @@ funs_for_proto(Name, #{funs := PFuns}, State=#{funs := Funs}) ->
 
 
 serialize_proto(BasePath, Module, Name, Info, Funs) ->
-    FileName = atom_to_list(Module) ++ "." ++ atom_to_list(Name) ++ ".ep",
-    Path = filename:join([BasePath, "ep", FileName]),
+    FileName = atom_to_list(Module) ++ ".ep",
+    Path = filename:join([BasePath, "ep", atom_to_list(Name), FileName]),
     dump(Path, #{module => Module, name => Name, info => Info, funs => Funs}).
 
 dump(Path, Data) ->

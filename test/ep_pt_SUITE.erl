@@ -12,8 +12,8 @@ ep_test_1(Config) ->
     ModPath = filename:join(DataDir, "ep_test_1.erl"), 
     {ok, Forms} = epp:parse_file(ModPath, []),
     ep_pt:parse_transform(Forms, [{ep_opts, #{output_path => OutputDir}}]),
-    PrintablePath = filename:join([OutputDir, "ep", "ep_test_1.printable.ep"]),
-    ConsyPath = filename:join([OutputDir, "ep", "ep_test_1.consy.ep"]),
+    PrintablePath = filename:join([OutputDir, "ep", "printable", "ep_test_1.ep"]),
+    ConsyPath = filename:join([OutputDir, "ep", "consy", "ep_test_1.ep"]),
     {ok, [PrintableInfo]} = file:consult(PrintablePath),
     {ok, [ConsyInfo]} = file:consult(ConsyPath),
     ExPrintableInfo = #{info =>
