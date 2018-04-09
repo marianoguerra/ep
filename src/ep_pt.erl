@@ -51,6 +51,5 @@ serialize_proto(BasePath, Module, Name, Info) ->
 
 dump(Path, Data) ->
     Str = io_lib:format("~w.", [Data]),
-    ct:pal("writing ~p -> ~s", [Path, Str]),
     filelib:ensure_dir(Path),
     file:write_file(Path, Str).
