@@ -23,7 +23,7 @@ ep_test_1(Config, TVType, Struct) ->
     {ok, Mod} = ep_compiler:load_module(ModName, ModBin),
     call_undef(Mod, first, [[1, 2]], ep_test, consy@first, 1),
     call_undef(Mod, rest, [[1, 2, 3]], ep_test, consy@rest, [2, 3]),
-    call_undef(Mod, first, [Struct], my_moda, consy@first, [Struct]).
+    call_undef(Mod, first, [Struct], my_mod, consy@first, [Struct]).
 
 call_undef(Mod, Fun, Args, ModCall, FunCall, Expected) ->
     try 
