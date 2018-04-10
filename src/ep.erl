@@ -30,7 +30,7 @@ ast_to_target(ModAst, Target) ->
             ErlCode = ep_compiler:ast_to_erl(ModAst),
             io:format("~s~n", [ErlCode]);
         "ast" ->
-            io:format("~s~n", [ModAst])
+            io:format("~p~n", [ModAst])
     end.
 
 usage() ->
