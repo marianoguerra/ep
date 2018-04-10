@@ -2,10 +2,19 @@
 -export([parse_transform/2, format_error/1]).
 
 parse_transform(Forms0, Options) ->
-    State = #{module => nil, protos => #{}, funs => #{}, warns => [], errors => []},
+    State = #{
+      module => nil,
+      protos => #{},
+      funs => #{},
+      warns => [],
+      errors => [],
+      exports => #{}
+     },
     {Forms, NewState} = ast_walk:forms(Forms0, fun walker/2, State),
     maybe_serialize_protos(NewState, Options),
-    Forms.
+    [N1, N2 | AstRest] = Forms,
+    ExportsAttr = {attribute, 3, export, gen_exports(NewState)},
+    [N1, N2, ExportsAttr | AstRest ++ gen_proto_functions(NewState)].
 
 format_error(Error) -> atom_to_list(Error).
 
@@ -33,6 +42,11 @@ walker(State0=#{funs := Funs}, {pre, Ast={function, _Line, Name, Arity, _Clauses
 
 walker(State, Ast={attribute, _Line, module, Module}) ->
     {Ast, State#{module := Module}};
+
+walker(State=#{exports := CurExports}, Ast={attribute, _Line, export, Exports}) ->
+    ExportsMap = maps:from_list([{FA, true} || FA <- Exports]),
+    NewExports = maps:merge(CurExports, ExportsMap),
+    {Ast, State#{exports := NewExports}};
 
 walker(State, Other) ->
     {Other, State}.
@@ -77,3 +91,27 @@ dump(Path, Data) ->
 
 add_warning(State=#{warns := Warns}, Warn) ->
     State#{warns := [Warn | Warns]}.
+
+gen_exports(#{protos := Protos}) ->
+    FoldFn = fun ({ProtoName, #{funs := Funs}}, AccumIn) ->
+                     NewExports = [{ep_compiler:gen_proto_fun_name(ProtoName, PFunName), Arity} ||
+                                   {PFunName, {_FName, Arity}} <- maps:to_list(Funs)],
+                     NewExports ++ AccumIn
+             end,
+    lists:foldl(FoldFn, [], maps:to_list(Protos)).
+
+gen_proto_functions(#{protos := Protos, module := Module}) ->
+    Line = 9001,
+    FoldFn = fun ({ProtoName, #{funs := Funs}}, AccumIn) ->
+                     FunsList = maps:to_list(Funs),
+                     NewExports = [gen_proto_fun_ast(Line, Arity, Module, ep_compiler:gen_proto_fun_name(ProtoName, PFunName), FName)
+                                   || {PFunName, {FName, Arity}} <- FunsList],
+                     NewExports ++ AccumIn
+             end,
+    lists:foldl(FoldFn, [], maps:to_list(Protos)).
+
+gen_proto_fun_ast(Line, Arity, _Module, FunName, FunCallName) ->
+    Args = ep_compiler:gen_var_args(Line, Arity),
+    Clause = {clause, Line, Args, [],
+              [{call,Line, {atom, Line, FunCallName}, Args}]},
+    {function, Line, FunName, Arity, [Clause]}.
