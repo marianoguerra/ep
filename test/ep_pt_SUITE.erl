@@ -45,11 +45,13 @@ ep_test_1(Config) ->
                     #{funs=>#{first=>{first,1},rest=>{consy_rest,1}},line=>4},
                     funs =>
                     #{first =>
-                      {function,9,first,1,
-                       [{clause,9,
-                         [{cons,9,{var,9,'H'},{var,9,'_'}}],
-                         [],
-                         [{var,9,'H'}]}]},
+					  {function,9,first,1,
+					   [{clause,9,
+						 [{match,9,
+						   {var,9,'L'},
+						   {cons,9,{var,9,'H'},{var,9,'_'}}}],
+						 [[{call,9,{atom,9,is_list},[{var,9,'L'}]}]],
+						 [{var,9,'H'}]}]},
                       rest =>
                       {function,10,consy_rest,1,
                        [{clause,10,

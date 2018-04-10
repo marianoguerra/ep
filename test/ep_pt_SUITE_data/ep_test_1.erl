@@ -6,5 +6,5 @@
 my_to_string(V) -> io_lib:format("~p", [V]).
 
 
-first([H | _]) -> H.
+first(L=[H | _]) when is_list(L) -> H.
 consy_rest([_ | T]) -> T.
