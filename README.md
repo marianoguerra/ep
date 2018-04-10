@@ -121,5 +121,5 @@ for the ones that are public.
 
 ## TODO
 
-[ ] Remove {eof, Line} from module AST in parse transform when appending proto funs
-[ ] Validate that proto implementation implements right functions and arities
+* [ ] Remove {eof, Line} from module AST in parse transform when appending proto funs
+* [ ] Validate that proto implementation implements right functions and arities
