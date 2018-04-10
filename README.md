@@ -1,29 +1,24 @@
-ep
-==
+# ep
 
 Erlang Protocols
 
-Build
------
+## Build
 
 ```
 make
 ```
 
-will compile and generate the ep escript, run it to see usage
+Will compile and generate the ep escript, run it to see usage
 
-Test
-----
+## Test
 
 ```
 make test
 ```
 
-Using the Script
-----------------
+## Using the Script
 
-Map Type Structs
-................
+### Map Type Structs
 
 ```
 ./ep compile-proto map erl test/ep_compiler_SUITE_data/ consy
@@ -45,8 +40,7 @@ rest(Arg@0 = [_ | T]) -> ep_test:consy@rest(Arg@0);
 rest(V = #{'__struct__' := Type}) -> Type:consy@rest(V).
 ```
 
-Map Type Structs
-................
+### Tuple Type Structs
 
 ```
 ./ep compile-proto tuple erl test/ep_compiler_SUITE_data/ consy
@@ -66,8 +60,7 @@ rest(V = {{Type, _Data, _}}) -> Type:consy@rest(V).
 ```
 
 
-Notes
------
+##Notes
 
 If I embed the ast of the impl function in the proto module I don't have
 access to private functions and I have to rewrite local calls to remote ones
