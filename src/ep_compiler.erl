@@ -31,15 +31,21 @@ ast_to_erl(ModAst) ->
 ast_to_beam_file(ModAst, OutDir) ->
     case compile:forms(ModAst, [return]) of
         {ok, ModuleName, Code} ->
-            BeamName = atom_to_list(ModuleName) ++ ".beam",
-            BeamPath = filename:join(OutDir, BeamName),
-            case file:write_file(BeamPath, Code) of
-                ok -> {ok, ModuleName, Code, []};
-                Error -> Error
-            end;
-        {ok, _ModuleName, _Code, _Warnings}=Res -> Res;
+            beam_to_file(ModuleName, Code, OutDir),
+            {ok, ModuleName, Code, []};
+        {ok, ModuleName, Code, _Warnings}=Res ->
+            beam_to_file(ModuleName, Code, OutDir),
+            Res;
         {error, _Errors, _Warnings}=Error -> Error;
         error -> {error, [{error, compile_forms_error}], []}
+    end.
+
+beam_to_file(ModuleName, Code, OutDir) ->
+    BeamName = atom_to_list(ModuleName) ++ ".beam",
+    BeamPath = filename:join(OutDir, BeamName),
+    case file:write_file(BeamPath, Code) of
+        ok -> {ok, ModuleName, Code, []};
+        Error -> Error
     end.
 
 ast_map_to_mod_ast(AstMap, ProtoName) ->
