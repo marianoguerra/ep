@@ -1,5 +1,5 @@
 {application, ep,
- [{description, "An OTP library"},
+ [{description, "Erlang Protocols"},
   {vsn, "0.1.0"},
   {registered, []},
   {applications,
@@ -9,7 +9,7 @@
   {env,[]},
   {modules, []},
 
-  {maintainers, []},
+  {maintainers, ["Mariano Guerra"]},
   {licenses, ["Apache 2.0"]},
-  {links, []}
+  {links, [{"Github", "https://github.com/marianoguerra/ep"}]}
  ]}.
