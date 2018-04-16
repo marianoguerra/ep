@@ -1,5 +1,5 @@
 -module(ep_compiler).
--export([compile/3, compile_asts/3, ast_to_erl/1]).
+-export([compile/3, compile_asts/3, ast_to_erl/1, ast_to_beam_file/2]).
 -export([gen_proto_fun_name/2, gen_var_args/2]).
 -export([compile_forms/1, load_module/2, soft_purge_module/1, purge_module/1]).
 
@@ -27,6 +27,20 @@ load_module(ModName, ModBin) ->
 
 ast_to_erl(ModAst) ->
   erl_prettypr:format(erl_syntax:form_list(ModAst)).
+
+ast_to_beam_file(ModAst, OutDir) ->
+    case compile:forms(ModAst, [return]) of
+        {ok, ModuleName, Code} ->
+            BeamName = atom_to_list(ModuleName) ++ ".beam",
+            BeamPath = filename:join(OutDir, BeamName),
+            case file:write_file(BeamPath, Code) of
+                ok -> {ok, ModuleName, Code, []};
+                Error -> Error
+            end;
+        {ok, _ModuleName, _Code, _Warnings}=Res -> Res;
+        {error, _Errors, _Warnings}=Error -> Error;
+        error -> {error, [{error, compile_forms_error}], []}
+    end.
 
 ast_map_to_mod_ast(AstMap, ProtoName) ->
     [{attribute, 1, module, list_to_atom(ProtoName)},

@@ -25,9 +25,48 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
-    rebar_api:info("Compiling Erlang Protocols", []),
-    {ok, State}.
+    ErlOpts = rebar_state:get(State, erl_opts, []),
+    EpOpts = proplists:get_value(ep_opts, ErlOpts, #{}), 
+
+	Apps = case rebar_state:current_app(State) of
+			   undefined ->
+				   rebar_state:project_apps(State);
+			   AppInfo ->
+				   [AppInfo]
+		   end,
+	[begin
+		 %Opts = rebar_app_info:opts(AppInfo),
+		 InDir = rebar_app_info:out_dir(AppInfo),
+         OutDir = rebar_app_info:ebin_dir(AppInfo),
+         AppName = rebar_app_info:name(AppInfo),
+         BaseDir = filename:join(InDir, "ep_protos"),
+         rebar_api:info("Compiling Erlang Protocols for app '~s'", [AppName]),
+         compile_protos(BaseDir, OutDir, EpOpts)
+
+	 end || AppInfo <- Apps],
+
+	{ok, State}.
 
 -spec format_error(any()) ->  iolist().
 format_error(Reason) ->
     io_lib:format("~p", [Reason]).
+
+%% private api
+compile_protos(BaseDir, OutDir, EpOpts) ->
+    [compile_proto(BaseDir, ProtoName, OutDir, EpOpts) ||
+     ProtoName <- list_dirs(BaseDir)].
+
+compile_proto(BaseDir, ProtoName, OutDir, EpOpts) ->
+    rebar_api:info("  Compiling Erlang Protocol '~s'", [ProtoName]),
+    ModAst = ep_compiler:compile(BaseDir, ProtoName, EpOpts),
+    ep_compiler:ast_to_beam_file(ModAst, OutDir).
+
+list_dirs(BaseDir) ->
+    case file:list_dir(BaseDir) of
+        {ok, Filenames} ->
+            [Filename ||
+             Filename <- Filenames,
+             file_lib:is_dir(filename:join(BaseDir, Filename))];
+        {error, enoent} ->
+            []
+    end.
