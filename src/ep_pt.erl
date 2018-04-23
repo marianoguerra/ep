@@ -5,6 +5,7 @@ parse_transform(Forms0, Options) ->
     State = #{
       module => nil,
       protos => #{},
+      decls => #{},
       funs => #{},
       warns => [],
       errors => [],
@@ -12,6 +13,7 @@ parse_transform(Forms0, Options) ->
      },
     {Forms, NewState} = ast_walk:forms(Forms0, fun walker/2, State),
     maybe_serialize_protos(NewState, Options),
+    maybe_serialize_decls(NewState, Options),
     [N1, N2 | AstRest] = Forms,
     ExportsAttr = {attribute, 3, export, gen_exports(NewState)},
     [N1, N2, ExportsAttr | AstRest ++ gen_proto_functions(NewState)].
@@ -33,6 +35,24 @@ walker(State0=#{protos := Protos},
                                #{name => Name,
                                  current => CurProtoInfo,
                                  new => ProtoInfo}})
+            end,
+    {Ast, State};
+
+walker(State0=#{decls := Decls},
+       Ast={attribute, Line, def_ep, {Name, Funs}}) ->
+
+    DeclInfo = #{line => Line, funs => Funs},
+    NewDecls = Decls#{Name => DeclInfo},
+
+    State = case maps:get(Name, Decls, nil) of
+                nil ->
+                    State0#{decls := NewDecls};
+                CurDeclInfo ->
+                    add_warning(State0#{decls := NewDecls},
+                              {duplicated_definition,
+                               #{name => Name,
+                                 current => CurDeclInfo,
+                                 new => DeclInfo}})
             end,
     {Ast, State};
 
@@ -62,6 +82,17 @@ maybe_serialize_protos(State=#{protos := Protos, module := Module}, Options) ->
                 State,
                 maps:to_list(Protos)).
 
+maybe_serialize_decls(State=#{decls := Decls , module := Module}, Options) ->
+    EpOpts = proplists:get_value(ep_opts, Options, #{}),
+    OutputBasePath = maps:get(output_path, EpOpts, "."),
+    lists:foldl(fun ({Name, Info}, StateIn) ->
+                        {Funs, StateOut} = funs_for_decl(Name, Info, StateIn),
+                        serialize_decl(OutputBasePath, Module, Name, Info, Funs),
+                        StateOut
+                end,
+                State,
+                maps:to_list(Decls)).
+
 funs_for_proto(Name, #{funs := PFuns}, State=#{funs := Funs}) ->
     lists:foldl(fun ({PFName, FunId={_FName, _FArity}}, {PFunsIn, StateIn}) ->
                         case maps:get(FunId, Funs, not_found) of
@@ -78,9 +109,34 @@ funs_for_proto(Name, #{funs := PFuns}, State=#{funs := Funs}) ->
                 {#{}, State},
                 maps:to_list(PFuns)).
 
+funs_for_decl(Name, #{funs := PFuns}, State=#{funs := Funs}) ->
+    lists:foldl(fun
+                    ({PFName, FunId={_FName, _FArity}}, {PFunsIn, StateIn}) ->
+                        case maps:get(FunId, Funs, not_found) of
+                            not_found ->
+                                StateOut = add_warning(StateIn,
+                                                       {fun_impl_not_found,
+                                                        #{fid => FunId,
+                                                          decl => Name}}),
+                                {PFunsIn, StateOut};
+                            Ast ->
+                                {PFunsIn#{PFName => Ast}, StateIn}
+                        end;
+                    ({_PFName, FArity}, AccumOut) when is_integer(FArity)->
+                        % proto fun declaration with arity only
+                        AccumOut
+                end,
+                {#{}, State},
+                maps:to_list(PFuns)).
+
 
 serialize_proto(BasePath, Module, Name, Info, Funs) ->
     FileName = atom_to_list(Module) ++ ".ep",
+    Path = filename:join([BasePath, "ep", atom_to_list(Name), FileName]),
+    dump(Path, #{module => Module, name => Name, info => Info, funs => Funs}).
+
+serialize_decl(BasePath, Module, Name, Info, Funs) ->
+    FileName = atom_to_list(Module) ++ ".epd",
     Path = filename:join([BasePath, "ep", atom_to_list(Name), FileName]),
     dump(Path, #{module => Module, name => Name, info => Info, funs => Funs}).
 

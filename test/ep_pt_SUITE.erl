@@ -1,12 +1,12 @@
 -module(ep_pt_SUITE).
 -compile(export_all).
 
-all() -> [ep_test_1].
+all() -> [ep_test_proto_impls, ep_test_proto_decls].
 
 data_dir(Config) -> proplists:get_value(data_dir, Config).
 priv_dir(Config) -> test_server:lookup_config(priv_dir, Config).
 
-ep_test_1(Config) ->
+ep_test_proto_impls(Config) ->
     DataDir = data_dir(Config),
     OutputDir = priv_dir(Config),
     ModPath = filename:join(DataDir, "ep_test_1.erl"), 
@@ -62,3 +62,36 @@ ep_test_1(Config) ->
     ExPrintableInfo = PrintableInfo,
     ExConsyInfo = ConsyInfo.
 
+ep_test_proto_decls(Config) ->
+    DataDir = data_dir(Config),
+    OutputDir = priv_dir(Config),
+    ModPath = filename:join(DataDir, "ep_test_2.erl"), 
+    {ok, Forms} = epp:parse_file(ModPath, []),
+    NewForms = ep_pt:parse_transform(Forms, [{ep_opts, #{output_path => OutputDir}}]),
+    PrintablePath = filename:join([OutputDir, "ep", "printable", "ep_test_2.epd"]),
+    ConsyPath = filename:join([OutputDir, "ep", "consy", "ep_test_2.epd"]),
+    {ok, [PrintableInfo]} = file:consult(PrintablePath),
+    {ok, [ConsyInfo]} = file:consult(ConsyPath),
+
+    #{name := printable, module := ep_test_2, info := Info, funs := Funs} = PrintableInfo,
+    #{funs := #{to_string := {my_to_string, 1}}} = Info,
+    Funs = #{to_string =>
+             {function,6,my_to_string,1,
+              [{clause,6,
+                [{var,6,'V'}],
+                [[{call,6,{atom,6,is_integer},[{var,6,'V'}]}]],
+                [{call,6,{atom,6,integer_to_binary},[{var,6,'V'}]}]},
+               {clause,7,
+                [{var,7,'V'}],
+                [[{call,7,{atom,7,is_float},[{var,7,'V'}]}]],
+                [{call,7,{atom,7,float_to_binary},[{var,7,'V'}]}]},
+               {clause,8,
+                [{var,8,'V'}],
+                [[{call,8,{atom,8,is_atom},[{var,8,'V'}]}]],
+                [{call,8,
+                  {atom,8,atom_to_binary},
+                  [{var,8,'V'},{atom,8,utf8}]}]}]}},
+
+    #{name := consy, module := ep_test_2, info := CInfo, funs := CFuns} = ConsyInfo,
+    #{funs := #{first := 1, rest := 1}} = CInfo,
+    0 = maps:size(CFuns).
