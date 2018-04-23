@@ -111,7 +111,7 @@ funs_for_proto(Name, #{funs := PFuns}, State=#{funs := Funs}) ->
 
 funs_for_decl(Name, #{funs := PFuns}, State=#{funs := Funs}) ->
     lists:foldl(fun
-                    ({PFName, FunId={_FName, _FArity}}, {PFunsIn, StateIn}) ->
+                    ({PFName, FunId={_FName, FArity}}, {PFunsIn, StateIn}) ->
                         case maps:get(FunId, Funs, not_found) of
                             not_found ->
                                 StateOut = add_warning(StateIn,
@@ -120,7 +120,7 @@ funs_for_decl(Name, #{funs := PFuns}, State=#{funs := Funs}) ->
                                                           decl => Name}}),
                                 {PFunsIn, StateOut};
                             Ast ->
-                                {PFunsIn#{PFName => Ast}, StateIn}
+                                {PFunsIn#{{PFName, FArity}=> Ast}, StateIn}
                         end;
                     ({_PFName, FArity}, AccumOut) when is_integer(FArity)->
                         % proto fun declaration with arity only

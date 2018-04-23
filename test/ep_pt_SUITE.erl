@@ -75,7 +75,7 @@ ep_test_proto_decls(Config) ->
 
     #{name := printable, module := ep_test_2, info := Info, funs := Funs} = PrintableInfo,
     #{funs := #{to_string := {my_to_string, 1}}} = Info,
-    Funs = #{to_string =>
+    Funs = #{{to_string, 1} =>
              {function,6,my_to_string,1,
               [{clause,6,
                 [{var,6,'V'}],

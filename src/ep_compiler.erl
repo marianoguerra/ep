@@ -1,16 +1,37 @@
 -module(ep_compiler).
--export([compile/3, compile_asts/3, ast_to_erl/1, ast_to_beam_file/2]).
+-export([compile/3, compile_asts/4, ast_to_erl/1, ast_to_beam_file/2]).
 -export([gen_proto_fun_name/2, gen_var_args/2]).
 -export([compile_forms/1, load_module/2, soft_purge_module/1, purge_module/1]).
 
 compile(BasePath, ProtoName, Opts) ->
+    PathDeclBlob = filename:join([BasePath, ProtoName, "*.epd"]),
+    DeclPaths = filelib:wildcard(PathDeclBlob),
+    DeclInfo = case DeclPaths of
+                   [DeclPath] ->
+                       {ok, [DeclInfo0]} = file:consult(DeclPath),
+                       DeclInfo0;
+                   [DeclPath | _] ->
+                       warn("Multiple protocol definitions for ~p: ~p~n",
+                            [ProtoName, DeclPaths], Opts),
+                       {ok, [DeclInfo0]} = file:consult(DeclPath),
+                       DeclInfo0;
+                   [] ->
+                       warn("No protocol definition for ~p ~s ~n", [ProtoName, PathDeclBlob], Opts),
+                       #{}
+               end,
+
     PathBlob = filename:join([BasePath, ProtoName, "*.ep"]),
     ProtoPaths = filelib:wildcard(PathBlob),
     FileContents = [file:consult(Path) || Path <- ProtoPaths],
     % handle errors
     Asts = [Ast || {ok, [Ast]} <- FileContents],
-    AstMap = compile_asts(Asts, ProtoName, Opts),
+    AstMap = compile_asts(Asts, ProtoName, DeclInfo, Opts),
     ast_map_to_mod_ast(AstMap, ProtoName).
+
+warn(FmtStr, Args, #{warn_fun := WarnFun}) ->
+    WarnFun(FmtStr, Args);
+warn(FmtStr, Args, _Opts) ->
+    io:format(FmtStr, Args).
 
 compile_forms(Forms) ->
     compile:forms(Forms, [return, binary]).
@@ -53,12 +74,12 @@ ast_map_to_mod_ast(AstMap, ProtoName) ->
      {attribute, 2, export, maps:keys(AstMap)}|
      maps:values(AstMap)].
 
-compile_asts(Asts, ProtoName, Opts) ->
-    compile_asts(Asts, #{}, ProtoName, Opts).
+compile_asts(Asts, ProtoName, DeclInfo, Opts) ->
+    compile_asts(Asts, #{}, ProtoName, DeclInfo, Opts).
 
-compile_asts([], Accum, ProtoName, Opts) ->
-    add_generic_router_clause_to_funs(Accum, ProtoName, Opts);
-compile_asts([#{funs := Funs, module := Module} | T], Accum, ProtoName, Opts) ->
+compile_asts([], Accum, ProtoName, DeclInfo, Opts) ->
+    add_default_and_generic_router_clause_to_funs(Accum, ProtoName, DeclInfo, Opts);
+compile_asts([#{funs := Funs, module := Module} | T], Accum, ProtoName, DeclInfo, Opts) ->
     FoldFn = fun ({PFunName, {function, _Line, _ImplFunName, Arity, [Clause]}},
                   AccumIn) ->
                      % we use the arity of the impl since it should be
@@ -66,17 +87,26 @@ compile_asts([#{funs := Funs, module := Module} | T], Accum, ProtoName, Opts) ->
                      add_fun_clause(PFunName, Module, ProtoName, Arity, Clause, AccumIn)
              end,
     NewAccum = lists:foldl(FoldFn, Accum, maps:to_list(Funs)),
-    compile_asts(T, NewAccum, ProtoName, Opts).
+    compile_asts(T, NewAccum, ProtoName, DeclInfo, Opts).
 
-add_generic_router_clause_to_funs(Accum, ProtoName, Opts) ->
-    TVType= maps:get(tv_type, Opts, map),
+add_default_and_generic_router_clause_to_funs(Accum, ProtoName, DeclInfo, Opts) ->
+    TVType = maps:get(tv_type, Opts, map),
     maps:map(fun ({PFunName, Arity}, Ast) ->
+                     DefaultClauses = get_default_clauses(PFunName, Arity, DeclInfo),
                      {function, Line, PFunName, Arity, Clauses} = Ast,
 					 NewClause = generic_router_clause(Line, Arity, ProtoName, PFunName, TVType),
-                     NewClauses = Clauses ++ [NewClause],
+                     NewClauses = DefaultClauses ++ Clauses ++ [NewClause],
                      {function, Line, PFunName, Arity, NewClauses}
 
              end, Accum).
+
+get_default_clauses(PFunName, Arity, #{funs := Funs}) ->
+    case maps:find({PFunName, Arity}, Funs) of
+        error -> [];
+        {ok, {function, _Line, _FunName, Arity, Clauses}} -> Clauses
+    end;
+get_default_clauses(_PFunName, _Arity, _Opts) ->
+    [].
 
 add_fun_clause(PFunName, Module, ProtoName, Arity,
                {clause, _CL, CHeadArgs, CGuards, _CBody}, Accum) ->
