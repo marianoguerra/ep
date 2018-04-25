@@ -1,7 +1,7 @@
 -module(ep_pt_SUITE).
 -compile(export_all).
 
-all() -> [ep_test_proto_impls, ep_test_proto_decls].
+all() -> [ep_test_proto_impls, ep_test_proto_decls, pt_removes_info_cur_mod_if_not_valid].
 
 data_dir(Config) -> proplists:get_value(data_dir, Config).
 priv_dir(Config) -> test_server:lookup_config(priv_dir, Config).
@@ -95,3 +95,17 @@ ep_test_proto_decls(Config) ->
     #{name := consy, module := ep_test_2, info := CInfo, funs := CFuns} = ConsyInfo,
     #{funs := #{first := 1, rest := 1}} = CInfo,
     0 = maps:size(CFuns).
+
+pt_removes_info_cur_mod_if_not_valid(Config) ->
+    DataDir = data_dir(Config),
+    OutputDir = priv_dir(Config),
+    ModPath = filename:join(DataDir, "ep_test_empty.erl"), 
+    {ok, Forms} = epp:parse_file(ModPath, []),
+    PrintablePath = filename:join([OutputDir, "ep", "printable", "ep_test_empty.ep"]),
+    PrintableDeclPath = filename:join([OutputDir, "ep", "printable", "ep_test_empty.epd"]),
+    file:write_file(PrintablePath, <<"hi there">>),
+    file:write_file(PrintableDeclPath, <<"hi there">>),
+    _NewForms = ep_pt:parse_transform(Forms, [{ep_opts, #{output_path => OutputDir}}]),
+
+    false = filelib:is_regular(PrintablePath),
+    false = filelib:is_regular(PrintableDeclPath).

@@ -14,6 +14,8 @@ parse_transform(Forms0, Options) ->
     {Forms, NewState} = ast_walk:forms(Forms0, fun walker/2, State),
     maybe_serialize_protos(NewState, Options),
     maybe_serialize_decls(NewState, Options),
+    remove_outdated_protos(NewState, Options),
+    remove_outdated_decls(NewState, Options),
     [N1, N2 | AstRest] = Forms,
     ExportsAttr = {attribute, 3, export, gen_exports(NewState)},
     [N1, N2, ExportsAttr | AstRest ++ gen_proto_functions(NewState)].
@@ -72,8 +74,7 @@ walker(State, Other) ->
     {Other, State}.
 
 maybe_serialize_protos(State=#{protos := Protos, module := Module}, Options) ->
-    EpOpts = proplists:get_value(ep_opts, Options, #{}),
-    OutputBasePath = maps:get(output_path, EpOpts, "."),
+    OutputBasePath = get_output_base_path(Options),
     lists:foldl(fun ({Name, Info}, StateIn) ->
                         {ProtoFuns, StateOut} = funs_for_proto(Name, Info, StateIn),
                         serialize_proto(OutputBasePath, Module, Name, Info, ProtoFuns),
@@ -171,3 +172,26 @@ gen_proto_fun_ast(Line, Arity, _Module, FunName, FunCallName) ->
     Clause = {clause, Line, Args, [],
               [{call,Line, {atom, Line, FunCallName}, Args}]},
     {function, Line, FunName, Arity, [Clause]}.
+
+get_output_base_path(Options) ->
+    EpOpts = proplists:get_value(ep_opts, Options, #{}),
+    maps:get(output_path, EpOpts, ".").
+
+get_outdated(FileName, Options, NameMap) ->
+    BasePath = get_output_base_path(Options),
+    PathBlob = filename:join([BasePath, "ep", "*", FileName]),
+    Existing = filelib:wildcard(PathBlob),
+    Current = maps:from_list([{list_to_binary(filename:join([BasePath, "ep", Name, FileName])), true} || Name <- maps:keys(NameMap)]),
+    lists:filter(fun (Item) ->
+						 not maps:get(list_to_binary(Item), Current, false)
+                 end, Existing).
+
+remove_outdated_protos(#{module := Module, protos := Protos}, Options) ->
+    FileName = atom_to_list(Module) ++ ".ep",
+    ToRemove = get_outdated(FileName, Options, Protos),
+    [file:delete(Path) || Path <- ToRemove].
+
+remove_outdated_decls(#{module := Module, decls := Decls}, Options) ->
+    FileName = atom_to_list(Module) ++ ".epd",
+    ToRemove = get_outdated(FileName, Options, Decls),
+    [file:delete(Path) || Path <- ToRemove].
