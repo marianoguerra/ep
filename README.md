@@ -194,7 +194,6 @@ for the ones that are public.
 
 ## TODO
 
-* [ ] Remove {eof, Line} from module AST in parse transform when appending proto funs
 * [ ] Validate that proto implementation implements right functions and arities
-
-* [ ] Remove .ep and .epd files in output if that module no longer declares or implements protos
+* [x] Remove {eof, Line} from module AST in parse transform when appending proto funs
+* [x] Remove .ep and .epd files in output if that module no longer declares or implements protos

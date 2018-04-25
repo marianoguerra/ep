@@ -18,7 +18,7 @@ parse_transform(Forms0, Options) ->
     remove_outdated_decls(NewState, Options),
     [N1, N2 | AstRest] = Forms,
     ExportsAttr = {attribute, 3, export, gen_exports(NewState)},
-    [N1, N2, ExportsAttr | AstRest ++ gen_proto_functions(NewState)].
+    [N1, N2, ExportsAttr | remove_eof(AstRest) ++ gen_proto_functions(NewState)].
 
 format_error(Error) -> atom_to_list(Error).
 
@@ -195,3 +195,6 @@ remove_outdated_decls(#{module := Module, decls := Decls}, Options) ->
     FileName = atom_to_list(Module) ++ ".epd",
     ToRemove = get_outdated(FileName, Options, Decls),
     [file:delete(Path) || Path <- ToRemove].
+
+remove_eof(Ast) ->
+	lists:filter(fun ({eof, _}) -> false; (_) -> true end, Ast).
